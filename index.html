@@ -41,7 +41,7 @@ let searchMode='web';
 $('[data-mode]').forEach(b=>b.onclick=()=>{searchMode=b.dataset.mode;$('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));if($('#homesearch').value.trim())runSearch($('#homesearch').value.trim())});
 $('#homesearchBtn').onclick=()=>runSearch($('#homesearch').value);
 $('#homesearch').addEventListener('keydown',e=>{if(e.key==='Enter')runSearch(e.target.value)});
-function openResult(url){window.open(url,'_blank','noopener,noreferrer')}
+function openResult(url){window.open(/^https?:\/\//i.test(url)?proxyTarget(url):url,'_blank','noopener,noreferrer')}
 function resultCard(title,url,desc,source=''){return '<article class="result-card"><h3><a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(title)+'</a></h3><div class="result-url">'+esc(source||url)+'</div><p>'+esc(desc||'Open this result to explore more.')+'</p><div class="result-actions"><button data-open-result="'+esc(url)+'" class="primary">Open result ↗</button><button data-copy-result="'+esc(url)+'">Copy link</button></div></article>'}
 function bindResultButtons(){ $('[data-open-result]').forEach(b=>b.onclick=()=>openResult(b.dataset.openResult));$('[data-copy-result]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copyResult);toast('Link copied')}catch{toast('Clipboard permission unavailable')}})}
 async function runSearch(raw){
