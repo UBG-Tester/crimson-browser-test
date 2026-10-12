@@ -19,7 +19,10 @@
 </main></div><div class="footer">CRIMSON BROWSER · Web shell build · Some native browser features require a dedicated browser engine.</div></div>
 <div class="modal" id="modal"><div class="modalbox" id="modalbox"></div></div><div class="toast" id="toast"></div>
 <script>
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+/* Startup diagnostics: surface client-side failures instead of silently leaving a dead UI. */
+window.addEventListener('error',e=>{const box=document.getElementById('toast');if(box){box.textContent='Crimson script error: '+(e.message||'unknown error');box.classList.add('show')}});
+window.addEventListener('unhandledrejection',e=>{const box=document.getElementById('toast');if(box){box.textContent='Crimson action failed: '+String(e.reason||'unknown error');box.classList.add('show')}});
+const $=s=>document.querySelector(s), $=s=>[...document.querySelectorAll(s)];
 const defaults={theme:'crimson',wall:'crimson',search:'https://www.google.com/search?q=',proxyEngine:'scramjet',start:'home',memory:true,reduceMotion:false,tracking:false,cookie:false,shortcuts:[{name:'YouTube',url:'https://youtube.com',icon:'▶️'},{name:'GitHub',url:'https://github.com',icon:'⌘'},{name:'Discord',url:'https://discord.com/app',icon:'💬'},{name:'Reddit',url:'https://reddit.com',icon:'◉'}],workspaces:[{name:'Personal',icon:'◈'},{name:'Work',icon:'▣'},{name:'School',icon:'⌑'}],mods:[],history:[],bookmarks:[]};
 let state;try{state={...defaults,...JSON.parse(localStorage.getItem('crimson-browser-state')||'{}')}}catch{state={...defaults}};let tabs=[{id:1,title:'New tab',url:'',view:'home'}],activeTab=1,tabSeq=2,activeWorkspace=0,activeSettings='appearance';
 function save(){localStorage.setItem('crimson-browser-state',JSON.stringify(state));renderShortcuts();renderHistory();renderWorkspaces();renderMods()}
