@@ -31,7 +31,7 @@ function switchTab(i){active=i;renderTabs();const t=tabs[active];$('#address').v
 function newTab(){tabs.push({id:nextId++,title:'New tab',url:'',history:[]});active=tabs.length-1;renderTabs();$('#address').value='';showView(prefs.start==='blank'?'browser':'home')}
 function closeTab(i){if(tabs.length===1){tabs[0]={id:1,title:'New tab',url:'',history:[]};active=0;renderTabs();showView('home');return}const t=tabs[i];if(frameMap.has(t.id)){frameMap.get(t.id).element.remove();frameMap.delete(t.id)}tabs.splice(i,1);active=Math.max(0,Math.min(active,tabs.length-1));renderTabs();switchTab(active)}
 function showFrame(url,local){$('#pageTitle').textContent=local?'Local HTML preview':titleFor(url);let f=frameMap.get(tabs[active].id);if(!f){const iframe=document.createElement('iframe');iframe.className='frame';iframe.referrerPolicy='no-referrer';iframe.allow='fullscreen; autoplay';$('#frames').append(iframe);f={element:iframe,session:null,local:false};frameMap.set(tabs[active].id,f)}f.element.classList.remove('hidden');for(const [id,x] of frameMap)if(id!==tabs[active].id)x.element.classList.add('hidden');if(local){f.local=true;f.element.setAttribute('sandbox','allow-scripts');f.element.src=url;return}f.element.removeAttribute('sandbox');if(!f.session)f.session=controller.createFrame(f.element,{});f.session.go(url);tabs[active].url=url;$('#address').value=url}
-function go(v){if(v===undefined)v=$('#address').value;const url=resolve(v);if(!url)return;const t=tabs[active];if(t.url&&t.url!==url)t.history.push(t.url);t.url=url;t.title=titleFor(url);history.unshift({url,title:t.title,time:Date.now()});history=history.slice(0,200);save();renderTabs();showView('browser');if(!controller){toast('Proxy engine is not ready yet');return}try{showFrame(url,false);$('#engineStatus').textContent='Proxying '+titleFor(url)}catch(e){toast('Proxy navigation failed: '+e.message)}}
+function go(v){if(v===undefined)v=$('#address').value;const url=resolve(v);if(!url)return;const t=tabs[active];if(t.url&&t.url!==url)t.history.push(t.url);t.url=url;t.title=titleFor(url);history.unshift({url,title:t.title,time:Date.now()});history=history.slice(0,200);save();renderTabs();showView('browser');if(!controller){toast('Proxy is unavailable: initialization failed. Read the setup error under the search box.');return}try{showFrame(url,false);$('#engineStatus').textContent='Proxying '+titleFor(url)}catch(e){toast('Proxy navigation failed: '+e.message)}}
 $('#addressForm').onsubmit=e=>{e.preventDefault();go()};$('#searchForm').onsubmit=e=>{e.preventDefault();go($('#search').value)};$$('[data-url]').forEach(b=>b.onclick=()=>go(b.dataset.url));$('#newTab').onclick=newTab;$('#back').onclick=()=>{const t=tabs[active];const u=t.history.pop();if(u){t.url=u;showFrame(u,false);renderTabs()}};$('#forward').onclick=()=>toast('Use the website’s own forward history if available');$('#reload').onclick=()=>{const f=frameMap.get(tabs[active].id);try{f?.session?.reload();if(f?.local)f.element.contentWindow.location.reload()}catch{}};
 $('#bookmark').onclick=()=>{const t=tabs[active];if(!t.url)return toast('Open a website first');bookmarks.unshift({url:t.url,title:t.title});save();renderBookmarks();toast('Bookmarked')};
 $('#openFile').onclick=()=>$('#file').click();$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const u=URL.createObjectURL(f);const t=tabs[active];t.localUrl=u;t.url='';t.title=f.name;renderTabs();showView('browser');showFrame(u,true);e.target.value=''};
@@ -44,6 +44,45 @@ $('#exportMods').onclick=()=>{const a=document.createElement('a');a.href=URL.cre
 $$('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));$$('[data-wall]').forEach(b=>b.onclick=()=>{prefs.wall=b.dataset.wall;document.body.style.background=b.dataset.wall==='ember'?'radial-gradient(ellipse at 30% 0%,#78303a55,transparent 40%),#08070a':b.dataset.wall==='violet'?'radial-gradient(ellipse at 70% 0%,#592b7a66,transparent 40%),#08070a':b.dataset.wall==='carbon'?'linear-gradient(135deg,#08070a,#28212b)':'radial-gradient(ellipse at 50% -12%,#d7194338,transparent 38%),#08070a';save()});$('#uploadWallpaper').onclick=()=>$('#wallFile').click();$('#wallFile').onchange=e=>{const f=e.target.files[0];if(!f)return;if(f.size>3e6)return toast('Choose an image under 3 MB');const r=new FileReader();r.onload=()=>{prefs.customWall=r.result;document.body.style.background='linear-gradient(#08070acc,#08070acc),url('+JSON.stringify(r.result)+') center/cover fixed';save()};r.readAsDataURL(f)};
 $('#openSettings').onclick=()=>showView('settings');$('#searchEngine').onchange=e=>{prefs.search=e.target.value;save()};$('#startPage').onchange=e=>{prefs.start=e.target.value;save()};$('#motion').onchange=e=>{prefs.motion=e.target.checked;document.documentElement.style.scrollBehavior=prefs.motion?'auto':'smooth';save()};$('#privacy').onchange=e=>{prefs.privacy=e.target.checked;save()};$('#checkHealth').onclick=checkHealth;$('#clearData').onclick=()=>modal('<h2>Clear local data?</h2><p class="muted">This clears local settings, history, bookmarks and CSS mods.</p><div class="row" style="justify-content:flex-end"><button data-dismiss>Cancel</button><button class="primary" id="confirmClear">Clear data</button></div>',()=>$('#confirmClear').onclick=()=>{localStorage.removeItem('crimson-gx-profile');location.reload()});
 async function checkHealth(){try{const r=await fetch('/health',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();$('#health').textContent='SERVER ONLINE';$('#engineStatus').textContent='Proxy server online · '+d.engine;$('#backendInfo').textContent='Online · '+d.engine+' · uptime '+d.uptimeSeconds+'s'}catch(e){$('#health').textContent='SERVER OFFLINE';$('#engineStatus').textContent='Proxy backend not reachable';$('#backendInfo').textContent='Offline: '+e.message}}
-async function boot(){renderTabs();renderHistory();renderBookmarks();renderMods();try{if(!('serviceWorker'in navigator))throw Error('Service workers require HTTPS or localhost');for(const src of ['/scram/scramjet.js','/controller/controller.api.js','/utils/scramjet-utils.js'])await new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(Error('Runtime file missing: '+src));document.head.append(s)});await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});const reg=await navigator.serviceWorker.ready;const worker=reg.active||navigator.serviceWorker.controller;if(!worker)throw Error('Service worker did not start');const tm=await import('/libcurl/index.mjs');const transport=new tm.default({wisp:(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/wisp/'});controller=new window.$scramjetController.Controller({serviceworker:worker,transport,config:{scramjetPath:'/scram/scramjet.js',wasmPath:'/scram/scramjet.wasm',injectPath:'/controller/controller.inject.js'}});await controller.wait();$('#engineStatus').textContent='Proxy engine connected · ready'}catch(e){console.error('Proxy init failed',e);$('#engineStatus').textContent='Proxy runtime failed: '+e.message;toast('Proxy runtime failed to initialize')}await checkHealth()}
-boot();
+async function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error('Failed to load runtime file: '+src));document.head.append(s)})}
+async function boot(){
+ renderTabs();renderHistory();renderBookmarks();renderMods();
+ try{
+  if(!('serviceWorker' in navigator))throw Error('Service workers are unavailable. Open Crimson GX over HTTPS.');
+  $('#engineStatus').textContent='Registering proxy service worker…';
+  const registration=await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
+  await navigator.serviceWorker.ready;
+  if(!navigator.serviceWorker.controller){
+   $('#engineStatus').textContent='Waiting for browser to activate proxy service worker…';
+   await Promise.race([
+    new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Service worker did not take control within 12 seconds. Reload the page once; if it repeats, the service-worker setup needs repair.')),12000))
+   ]);
+  }
+  const serviceworker=navigator.serviceWorker.controller||registration.active;
+  if(!serviceworker)throw Error('No active proxy service worker was found.');
+  $('#engineStatus').textContent='Loading Scramjet runtime files…';
+  for(const src of ['/scram/scramjet.js','/controller/controller.api.js','/utils/scramjet-utils.js'])await loadScript(src);
+  const api=window.$scramjetController;
+  if(!api||!api.Controller)throw Error('Scramjet controller API did not load. Check /controller/controller.api.js.');
+  const tm=await import('/libcurl/index.mjs');
+  const LibcurlClient=tm.default;
+  if(!LibcurlClient)throw Error('Libcurl transport module has no default export.');
+  const scheme=location.protocol==='https:'?'wss:':'ws:';
+  const transport=new LibcurlClient({wisp:scheme+'//'+location.host+'/wisp/'});
+  $('#engineStatus').textContent='Connecting proxy controller and downloading WebAssembly…';
+  controller=new api.Controller({serviceworker,transport,config:{scramjetPath:'/scram/scramjet.js',wasmPath:'/scram/scramjet.wasm',injectPath:'/controller/controller.inject.js'}});
+  await controller.wait();
+  navigator.serviceWorker.controller?.postMessage('keepalive');
+  setInterval(()=>navigator.serviceWorker.controller?.postMessage('keepalive'),15000);
+  $('#engineStatus').textContent='Proxy engine initialized · ready to browse';
+  console.info('Crimson GX proxy initialized');
+ }catch(e){
+  console.error('Crimson GX proxy initialization failed:',e);
+  $('#engineStatus').textContent='PROXY SETUP FAILED: '+(e?.message||String(e));
+  $('#health').textContent='PROXY NOT READY';
+  toast('Proxy setup failed. Read the error shown under the search box.');
+ }
+ await checkHealth();
+}boot();
 </script></body></html>
